@@ -12,7 +12,7 @@ this will be fixed soon, however the following works just fine with g++
 g++ main.c -Wall -o exec.bin
 ```
 
-#MIT License
+# MIT License
 
 Copyright (c) 2020 Fakhry Hussein Tatanaki
 
