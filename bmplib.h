@@ -94,7 +94,7 @@ bmp_image_t bmp_init(int width,int height){
 }
 
 
-inline void BMP_paintPixel(bmp_image_t* img,int row,int col,uint8_t blue,uint8_t green, uint8_t red){
+static inline void BMP_paintPixel(bmp_image_t* img,int row,int col,uint8_t blue,uint8_t green, uint8_t red){
   uint8_t* pixArr = img->pixArr;
   int w = img->width;
   //int* h = &img->height;
@@ -106,6 +106,7 @@ inline void BMP_paintPixel(bmp_image_t* img,int row,int col,uint8_t blue,uint8_t
   pixArr[paddingOffset + 3*row*(w) + 3*col + 2] = red;
 
 }
+
 
 void BMP_saveAsFile(bmp_image_t* img,const char* filename){
 
