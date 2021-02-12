@@ -4,14 +4,15 @@
 #include "bmplib.h"
 #include "cmplx.h"
 #include <math.h>
-
+#include <unistd.h>  
+#include <pthread.h> 
 
 int imgWidth;
 int imgHeight;
 
 
 Cmplx transform(int pixX,int pixY,double xOffset,double yOffset,double scale,int resX,int resY){
-    Cmplx r = {.r=(pixX - resX/2)/scale + xOffset,.i=(resY/2-pixY)/scale + yOffset};
+    Cmplx r = {.r=(pixX - resX/2.0)/scale + xOffset,.i=(resY/2.0-pixY)/scale + yOffset};
     return r;
 }
 
@@ -34,22 +35,52 @@ uint8_t mandelbrot(Cmplx c,int iterationLimit){
 
 }
 
-void drawMandelbrot(bmp_image_t* img,double x,double y,double scale){
-    uint8_t m;
-    printf("\nRendering the Mandelbrot set\n");
-    for (int i=0;i < imgWidth;i++){
+//void drawMandelbrot(int t,int n,bmp_image_t* img,double x,double y,double scale){
+//
+//    uint8_t m;
+//
+//    for (int i=t*imgWidth/n;i < (t+1)*imgWidth/n;i++){
+//
+//        for (int j=0;j < imgHeight;j++){
+//            m = mandelbrot(transform(i,j,x,y,scale,imgWidth,imgHeight), 200);
+//            BMP_paintPixel(img,j,i,m,m,m);
+//        }
+//    }
+//
+//
+//}
 
-      if ( i%(imgWidth/10)==0 )
-        printf("%d %c done \n",(i*100)/imgWidth,37);
+typedef struct {
+    int t;
+    int n;
+    bmp_image_t* img;
+    double x;
+    double y;
+    double scale;
+
+} drawMandelbrotArgs;
+
+pthread_mutex_t printMutex;
+
+void* drawMandelbrot(void* vargp){
+
+    drawMandelbrotArgs* args= (drawMandelbrotArgs*) vargp;
+
+    uint8_t m;
+
+    for (int i=args->t*imgWidth/args->n;i < (args->t+1)*imgWidth/args->n;i++){
 
         for (int j=0;j < imgHeight;j++){
+            m = mandelbrot(transform(i,j,args->x,args->y,args->scale,imgWidth,imgHeight), 200);
 
-            m = mandelbrot(transform(i,j,x,y,scale,imgWidth,imgHeight), 200);
-            BMP_paintPixel(img,j,i,m,m,m);
+            BMP_paintPixel(args->img,j,i,m,m,m);
         }
     }
+    pthread_mutex_lock(&printMutex);
+    printf("thread %d done\n",args->t);
+    pthread_mutex_unlock(&printMutex);
 
-    printf("100 %c done",37);
+    return NULL;
 
 }
 
@@ -57,51 +88,76 @@ void drawMandelbrot(bmp_image_t* img,double x,double y,double scale){
 
 
 
-
 int main(){
-  char ch='f';
-  double scale,x,y;
-  char imageDir[64];
-  float imgSizeInMB;
+    pthread_mutex_init(&printMutex,NULL);
 
-  printf("width of the image : ");
-  scanf("%d",&imgWidth);
-  printf("height of the image : ");
-  scanf("%d",&imgHeight);
-  printf("scale of the mandelbrot view : ");
-  scanf("%lf",&scale);
-  printf("x axis of the mandelbrot view : ");
-  scanf("%lf",&x);
-  printf("y axis of the mandelbrot view : ");
-  scanf("%lf",&y);
+    int numOfThreads = 12;
 
-  printf("new image file : ");
-  scanf("%s",imageDir);
+    pthread_t threads[numOfThreads];
+    drawMandelbrotArgs args[numOfThreads];
+
+    
+    char ch='f';
+    double scale,x,y;
+    char imageDir[64];
+    float imgSizeInMB;
+  
+    printf("width of the image : ");
+    scanf("%d",&imgWidth);
+    printf("height of the image : ");
+    scanf("%d",&imgHeight);
+    printf("scale of the mandelbrot view : ");
+    scanf("%lf",&scale);
+    printf("x axis of the mandelbrot view : ");
+    scanf("%lf",&x);
+    printf("y axis of the mandelbrot view : ");
+    scanf("%lf",&y);
+  
+    printf("new image file : ");
+    scanf("%s",imageDir);
+  
+  
+  
+    bmp_image_t img = bmp_init(imgWidth,-imgHeight);
+    imgSizeInMB = img.totalSize/( 1 << 20 );
+
+    while (!(ch=='y' || ch=='Y')){
+
+        printf("estimated image size %.1f MB, would you like to continue? ( (Y)es/(N)o )? : ",imgSizeInMB);
+        fflush(stdin);
+        ch = getchar();
 
 
+        if (ch=='n' || ch=='N')
+            return 0;
 
-  bmp_image_t img = bmp_init(imgWidth,-imgHeight);
-  imgSizeInMB = img.totalSize/( 1 << 20 );
+    }
 
-  while (!(ch=='y' || ch=='Y')){
+    for (int i=0;i < numOfThreads;i++){
 
-    printf("estimated image size %.1f MB, would you like to continue? ( (Y)es/(N)o )? : ",imgSizeInMB);
-    fflush(stdin);
-    ch = getchar();
+        args[i].img = &img;
+        args[i].n = numOfThreads;
+        args[i].scale = scale;
+        args[i].x = x;
+        args[i].y = y;
+        args[i].t = i;
 
+        pthread_create(&threads[i], NULL, drawMandelbrot, args + i);
 
-    if (ch=='n' || ch=='N')
-      return 0;
+    }
 
-  }
+//  drawMandelbrot(&img,x, y,scale);
 
-  drawMandelbrot(&img,x, y,scale);
+    for (int i=0;i < numOfThreads;i++)
+        pthread_join(threads[i],NULL);
 
+    pthread_mutex_destroy(&printMutex);
+     
 
+BMP_saveAsFile(&img,imageDir);
 
-  BMP_saveAsFile(&img,imageDir);
-
-  free(img.data);
-  return 0;
+    free(img.data);
+    pthread_exit(NULL);
+    return 0;
 
 }
