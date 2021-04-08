@@ -9,9 +9,6 @@ the project still needs improvements and updates. the bmplib.h file is a complet
 gcc main.c -Wall -lm -o exec.bin
 ```
 
-# for Mulithreading branch
-```bash
-gcc main.c -Wall -lm -lpthread -o exec.bin
-```
+
 
 
