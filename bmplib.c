@@ -99,7 +99,7 @@ void bmp_save_file(const BmpImage *bmpImage,const char* fileName){
   const uint32_t dibHeaderSize = sizeof(DibHeader);
   const uint32_t bmpHeaderSize = sizeof(BmpHeader);
 
-  uint8_t buffer[bmpDataSize + bmpHeaderSize + dibHeaderSize];
+  uint8_t *buffer = (uint8_t*) malloc(bmpDataSize + bmpHeaderSize + dibHeaderSize);
   int bufferPtr = 0;
 
   memcpy(buffer,&bmpImage->bmpHeader,bmpHeaderSize);
@@ -109,6 +109,7 @@ void bmp_save_file(const BmpImage *bmpImage,const char* fileName){
   memcpy(buffer + bufferPtr,bmpImage->bmpData,bmpDataSize);
   bufferPtr+=bmpDataSize;
   fwrite(buffer,bufferPtr,1,filePointer);
+  free(buffer);
 
   fclose(filePointer);
 }
